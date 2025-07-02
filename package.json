@@ -13,11 +13,11 @@
   "license": "UNLICENSED",
 
 "scripts": {
-  "build": "nest build",
+  "build": "tsc -p tsconfig.json",
   "start": "node dist/src/main.js",
   "start:dev": "nest start --watch",
   "migration:generate": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d data-source.ts",
-
+  
   "migration:run": "npm run build && npm run typeorm:run",
   "migration:revert": "npm run build && npm run typeorm:revert",
 
