@@ -17,11 +17,15 @@
   "start": "node dist/main.js",
   "start:dev": "nest start --watch",
   "migration:generate": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
-  "migration:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
-  "migration:revert": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
-  "render:build": "npm install && npm run build && npm run migration:run"
-},
+  
+  "migration:run": "npm run build && npm run typeorm:run",
+  "migration:revert": "npm run build && npm run typeorm:revert",
 
+  "typeorm:run": "typeorm-ts-node-commonjs -d dist/data-source.js migration:run",
+  "typeorm:revert": "typeorm-ts-node-commonjs -d dist/data-source.js migration:revert",
+
+  "render:build": "npm install && npm run build && npm run typeorm:run"
+},
   "dependencies": {
 
     "@nestjs/common": "^11.0.1",
