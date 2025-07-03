@@ -69,6 +69,9 @@ export class AppointmentService {
         if (!patient) {
           throw new NotFoundException('Patient profile not found for the logged-in user.');
         }
+        console.log(`Booking for User UUID: ${userUuid}`);
+        console.log(`Associated Patient ID: ${patient.patient_id}`);
+
         
         const doctor = timeSlot.doctor;
 
