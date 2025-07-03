@@ -18,8 +18,12 @@
   "start:dev": "nest start --watch",
   "migration:generate": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
   
+  "migration:run": "npm run build && npm run typeorm:run",
+  "migration:revert": "npm run build && npm run typeorm:revert",
+
   "typeorm:run": "typeorm-ts-node-commonjs -d dist/data-source.js migration:run",
-  
+  "typeorm:revert": "typeorm-ts-node-commonjs -d dist/data-source.js migration:revert",
+
   "render:build": "npm install && npm run build && npm run typeorm:run"
 },
   "dependencies": {

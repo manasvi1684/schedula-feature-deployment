@@ -81,6 +81,22 @@ export class Doctor {
     comment: 'Maximum number of patients per slot in wave scheduling',
   })
   wave_limit: number;
+  
+  @Column({
+  type: 'time', // Store as time string (HH:MM)
+  nullable: true, // Allow it to be null if not set
+  comment: 'Global booking window start time for the doctor',
+})
+booking_start_time: string;
+
+@Column({
+  type: 'time', // Store as time string (HH:MM)
+  nullable: true, // Allow it to be null if not set
+  comment: 'Global booking window end time for the doctor',
+})
+booking_end_time: string;
+
+
   // --- END OF NEW FIELDS ---
 
   @OneToMany(() => TimeSlot, (slot) => slot.doctor)

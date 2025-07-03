@@ -5,6 +5,8 @@ import {
   BadRequestException,
   NotFoundException,
   InternalServerErrorException,
+  ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +16,7 @@ import { TimeSlot } from 'src/entities/timeslot.entity';
 import { SetAvailabilityDto } from 'src/auth/dto/SetAvailabilityDto';
 import { PaginationDto } from 'src/auth/dto/PaginationDto';
 import { UpdateScheduleConfigDto } from './dto/update-schedule-config.dto';
+import { UpdateTimeSlotDto } from './dto/update-timeslot.dto';
 
 @Injectable()
 export class DoctorService {
@@ -63,6 +66,8 @@ export class DoctorService {
           slot_duration: doctor.slot_duration,
           consulting_time: doctor.consulting_time,
           wave_limit: doctor.wave_limit,
+          booking_start_time: doctor.booking_start_time,
+          booking_end_time: doctor.booking_end_time,
         },
       };
     } catch (error) {
@@ -70,6 +75,95 @@ export class DoctorService {
       throw new InternalServerErrorException('Failed to update schedule configuration.');
     }
   }
+
+  // src/doctor/doctor.service.ts, inside the DoctorService class
+
+  // ... (after updateScheduleConfig method)
+
+  async deleteTimeSlot(userUuid: string, slotId: number) {
+    // 1. Find the doctor making the request
+    const doctor = await this.doctorRepository.findOne({
+      where: { user: { id: userUuid } },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor profile not found for the logged-in user.');
+    }
+
+    // 2. Find the time slot to be deleted
+    const timeSlot = await this.timeSlotRepo.findOne({
+      where: { slot_id: slotId },
+      relations: ['doctor'], // We need to load the doctor to check ownership
+    });
+
+    if (!timeSlot) {
+      throw new NotFoundException(`Time slot with ID ${slotId} not found.`);
+    }
+
+    // 3. Authorization Check: Ensure the doctor owns this time slot
+    if (timeSlot.doctor.doctor_id !== doctor.doctor_id) {
+      throw new ForbiddenException('You are not authorized to delete this time slot.');
+    }
+
+    // 4. Validation Check: The critical business rule
+    if (timeSlot.booked_count > 0) {
+      throw new ConflictException(
+        'This slot cannot be deleted as it has one or more appointments booked.',
+      );
+    }
+
+    // 5. If all checks pass, delete the slot
+    await this.timeSlotRepo.remove(timeSlot);
+
+    return { message: `Time slot ${slotId} has been successfully deleted.` };
+  }
+
+  // src/doctor/doctor.service.ts
+// ... (after deleteTimeSlot method)
+
+async updateTimeSlot(
+  userUuid: string,
+  slotId: number,
+  dto: UpdateTimeSlotDto,
+) {
+  // 1. Find the doctor making the request
+  const doctor = await this.doctorRepository.findOne({
+    where: { user: { id: userUuid } },
+  });
+  if (!doctor) {
+    throw new NotFoundException('Doctor profile not found.');
+  }
+
+  // 2. Find the time slot to be edited
+  const timeSlot = await this.timeSlotRepo.findOne({
+    where: { slot_id: slotId },
+    relations: ['doctor'],
+  });
+  if (!timeSlot) {
+    throw new NotFoundException(`Time slot with ID ${slotId} not found.`);
+  }
+
+  // 3. Authorization Check
+  if (timeSlot.doctor.doctor_id !== doctor.doctor_id) {
+    throw new ForbiddenException('You are not authorized to edit this time slot.');
+  }
+
+  // 4. Validation Check (The same as delete)
+  if (timeSlot.booked_count > 0) {
+    throw new ConflictException(
+      'This slot cannot be edited as it has existing appointments.',
+    );
+  }
+
+  // 5. Update the slot and save
+  Object.assign(timeSlot, dto); // Merge new start/end times
+  const updatedSlot = await this.timeSlotRepo.save(timeSlot);
+
+  return {
+    message: `Time slot ${slotId} has been successfully updated.`,
+    slot: updatedSlot,
+  };
+}
 
   async setAvailability(userUuid: string, dto: SetAvailabilityDto) {
     try {

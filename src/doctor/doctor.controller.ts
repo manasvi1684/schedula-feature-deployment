@@ -7,6 +7,7 @@ import {
   Param,
   NotFoundException,
   Post,
+  Delete,
   Body,
   Req,
   UseGuards,
@@ -20,6 +21,7 @@ import { JwtGuard } from 'src/common/guards/jwt.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { UpdateScheduleConfigDto } from './dto/update-schedule-config.dto';
+import { UpdateTimeSlotDto } from './dto/update-timeslot.dto';
 
 @Controller('api/v1/doctors')
 export class DoctorController {
@@ -71,4 +73,28 @@ export class DoctorController {
   ) {
     return this.doctorService.getDoctorAvailability(doctorId, pagination);
   }
+
+  @Delete('time-slots/:slotId')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('doctor')
+  async deleteTimeSlot(
+    @Req() req: any,
+    @Param('slotId', ParseIntPipe) slotId: number,
+  ) {
+    const userUuid = req.user.sub;
+    return this.doctorService.deleteTimeSlot(userUuid, slotId);
+  }
+
+   @Patch('time-slots/:slotId')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('doctor')
+  async updateTimeSlot(
+    @Req() req: any,
+    @Param('slotId', ParseIntPipe) slotId: number,
+    @Body() updateTimeSlotDto: UpdateTimeSlotDto,
+  ) {
+    const userUuid = req.user.sub;
+    return this.doctorService.updateTimeSlot(userUuid, slotId, updateTimeSlotDto);
+  }
+
 }

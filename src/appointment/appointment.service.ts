@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   InternalServerErrorException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, MoreThanOrEqual } from 'typeorm';
@@ -32,6 +33,8 @@ export class AppointmentService {
     private dataSource: DataSource,
   ) {}
 
+// In src/appointment/appointment.service.ts
+
   async createAppointment(
     userUuid: string,
     createAppointmentDto: CreateAppointmentDto,
@@ -52,7 +55,6 @@ export class AppointmentService {
         }
 
         // --- STEP 2: Now that the row is safely locked, fetch the full data with EXPLICIT relations. ---
-        // By removing 'eager', we now have full control and generate simpler SQL.
         const timeSlot = await transactionalEntityManager.findOne(TimeSlot, {
             where: { slot_id: slot_id },
             relations: ['doctor', 'availability'],
@@ -69,13 +71,50 @@ export class AppointmentService {
         if (!patient) {
           throw new NotFoundException('Patient profile not found for the logged-in user.');
         }
-        console.log(`Booking for User UUID: ${userUuid}`);
-        console.log(`Associated Patient ID: ${patient.patient_id}`);
-
         
         const doctor = timeSlot.doctor;
 
         // --- 3. Perform validation checks ---
+        
+        // --- NEW BOOKING WINDOW VALIDATION ---
+// --- FINAL ROBUST BOOKING WINDOW VALIDATION ---
+if (doctor.booking_start_time && doctor.booking_end_time) {
+  // Get current time in local timezone
+  const now = new Date();
+  
+  // Convert current time to total minutes from midnight
+  const nowInMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  // Convert booking window times to total minutes from midnight
+  const [startHours, startMinutes] = doctor.booking_start_time.split(':').map(Number);
+  const bookingStartInMinutes = startHours * 60 + startMinutes;
+
+  const [endHours, endMinutes] = doctor.booking_end_time.split(':').map(Number);
+  const bookingEndInMinutes = endHours * 60 + endMinutes;
+  
+  // --- ADD THIS DEBUGGING BLOCK ---
+  console.log('--- BOOKING WINDOW DEBUG ---');
+  console.log('Doctor ID:', doctor.doctor_id);
+  console.log('Current Time:', now.toTimeString());
+  console.log('Booking Start Time (from DB):', doctor.booking_start_time);
+  console.log('Booking End Time (from DB):', doctor.booking_end_time);
+  console.log('---');
+  console.log('Current Time in Minutes:', nowInMinutes);
+  console.log('Booking Start in Minutes:', bookingStartInMinutes);
+  console.log('Booking End in Minutes:', bookingEndInMinutes);
+  console.log('---');
+  // --- END OF DEBUGGING BLOCK ---
+
+  // Now compare the numbers
+  if (
+    nowInMinutes < bookingStartInMinutes ||
+    nowInMinutes > bookingEndInMinutes
+  ) {
+    throw new ForbiddenException(/* ... */);
+  }
+}
+        // --- END OF NEW VALIDATION ---
+
         if (!timeSlot.is_available) {
           throw new ConflictException('This time slot is no longer available.');
         }
@@ -104,7 +143,7 @@ export class AppointmentService {
           }
           timeSlot.is_available = false;
           timeSlot.booked_count = 1;
-        } else {
+        } else { // Wave scheduling
           if (timeSlot.booked_count >= timeSlot.patient_limit) {
             throw new ConflictException('This time slot has reached its maximum capacity.');
           }

@@ -28,7 +28,8 @@ import { GoogleStrategy } from './strategy/google.strategy';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, GoogleStrategy],
+  providers: [AuthService, JwtStrategy, ...(process.env.GOOGLE_CLIENT_ID ? [GoogleStrategy] : []),
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}
