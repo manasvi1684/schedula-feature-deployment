@@ -13,7 +13,7 @@ import { Doctor } from './doctor.entity';
 import { Patient } from './patient.entity';
 import { TimeSlot } from './timeslot.entity'; // <-- IMPORTANT: Import TimeSlot
 
-@Entity('appointments') // It's good practice to name the table explicitly
+@Entity() // It's good practice to name the table explicitly
 export class Appointment {
   @PrimaryGeneratedColumn()
   appointment_id: number;
