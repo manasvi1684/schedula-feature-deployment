@@ -14,12 +14,7 @@
     "baseUrl": "./",
     "paths": {
       "src/*": ["src/*"]
-    },
-    "incremental": true,
-    "skipLibCheck": true,
-    "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false
+    }
   },
   "include": ["src/**/*"]
 }

@@ -14,14 +14,13 @@
 
 "scripts": {
   "build": "nest build",
-  "start": "node dist/src/main.js",
+  "start": "node dist/main.js",
   "start:dev": "nest start --watch",
-
-  "migration:generate": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d data-source.ts",
-  "typeorm:run": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d data-source.ts",
-  "typeorm:revert": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d data-source.ts",
-
-  "render:build": "npm install && npm run typeorm:run && npm run build"
+  "migration:generate": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
+  
+  "typeorm:run": "typeorm-ts-node-commonjs -d dist/data-source.js migration:run",
+  
+  "render:build": "npm install && npm run build && npm run typeorm:run"
 },
   "dependencies": {
 
