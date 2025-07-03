@@ -26,49 +26,34 @@ export class DoctorService {
     private timeSlotRepo: Repository<TimeSlot>,
   ) {}
 
-  // ... (getAllDoctors, getDoctorById, updateScheduleConfig are fine) ...
+  // ... (Your other methods are fine)
   getAllDoctors(name?: string, specialization?: string) {
     const qb = this.doctorRepository.createQueryBuilder('doctor');
-
     if (name) {
       qb.andWhere(
         "LOWER(doctor.first_name || ' ' || doctor.last_name) ILIKE :name",
         { name: `%${name.toLowerCase()}%` },
       );
     }
-
     if (specialization) {
       qb.andWhere('LOWER(doctor.specialization) ILIKE :specialization', {
         specialization: `%${specialization.toLowerCase()}%`,
       });
     }
-
     return qb.getMany();
   }
-
   getDoctorById(id: number) {
     return this.doctorRepository.findOne({
       where: { doctor_id: id },
       relations: ['user', 'appointments', 'timeSlots'],
     });
   }
-  
-  async updateScheduleConfig(
-    userUuid: string,
-    dto: UpdateScheduleConfigDto,
-  ) {
-    const doctor = await this.doctorRepository.findOne({
-      where: { user: { id: userUuid } },
-    });
-
+  async updateScheduleConfig(userUuid: string, dto: UpdateScheduleConfigDto) {
+    const doctor = await this.doctorRepository.findOne({ where: { user: { id: userUuid } } });
     if (!doctor) {
-      throw new NotFoundException(
-        'Doctor profile not found for the logged-in user.',
-      );
+      throw new NotFoundException('Doctor profile not found for the logged-in user.');
     }
-    
     Object.assign(doctor, dto);
-    
     try {
       await this.doctorRepository.save(doctor);
       return {
@@ -82,17 +67,12 @@ export class DoctorService {
       };
     } catch (error) {
       console.error('Error updating schedule config:', error);
-      throw new InternalServerErrorException(
-        'Failed to update schedule configuration.',
-      );
+      throw new InternalServerErrorException('Failed to update schedule configuration.');
     }
   }
 
-
-  // --- THIS IS THE CORRECTED METHOD ---
   async setAvailability(userUuid: string, dto: SetAvailabilityDto) {
     try {
-      // Find the doctor using the user's UUID relation
       const doctor = await this.doctorRepository.findOne({
         where: { user: { id: userUuid } },
       });
@@ -102,16 +82,18 @@ export class DoctorService {
       }
       
       const { date, start_time, end_time, session, weekdays } = dto;
-      // We will use the doctor's configured slot duration, not one from the DTO.
       const interval_minutes = doctor.slot_duration; 
 
       const parsedDate = new Date(date);
+      if (parsedDate.toString() === 'Invalid Date') {
+        throw new BadRequestException('Invalid date format provided.');
+      }
       if (parsedDate < new Date()) {
         throw new BadRequestException('Date cannot be in the past');
       }
 
       const availability = this.availabilityRepo.create({
-        doctor: doctor,
+        doctor, // Pass the full object
         date: parsedDate,
         start_time,
         end_time,
@@ -120,10 +102,7 @@ export class DoctorService {
       });
 
       const savedAvailability = await this.availabilityRepo.save(availability);
-
-      // Pass the FULL doctor object to the helper function
       const slots = this.generateTimeSlots(doctor, savedAvailability, interval_minutes);
-
       await this.timeSlotRepo.save(slots);
 
       return { message: 'Availability and slots created', slots };
@@ -140,7 +119,7 @@ export class DoctorService {
     const skip = (page - 1) * limit;
     const qb = this.timeSlotRepo.createQueryBuilder('slot');
 
-    qb.where('slot.doctor_id = :doctorId', { doctorId })
+    qb.where('slot.doctor.doctor_id = :doctorId', { doctorId })
       .andWhere('slot.is_available = :isAvailable', { isAvailable: true })
       .andWhere('slot.date >= CURRENT_DATE')
       .orderBy('slot.date', 'ASC')
@@ -152,37 +131,31 @@ export class DoctorService {
     return { total, page, limit, slots };
   }
 
-  // --- THIS IS THE CORRECTED HELPER METHOD ---
   private generateTimeSlots(
-    doctor: Doctor, // <-- Pass the full doctor object
+    doctor: Doctor,
     availability: DoctorAvailability,
     interval: number,
   ): TimeSlot[] {
     const slots: TimeSlot[] = [];
     const dateObj = new Date(availability.date);
-    const formattedDate = dateObj.toISOString().split('T')[0];
-
-    const start = new Date(`${formattedDate}T${availability.start_time}`);
-    const end = new Date(`${formattedDate}T${availability.end_time}`);
+    const start = new Date(`${dateObj.toISOString().slice(0, 10)}T${availability.start_time}`);
+    const end = new Date(`${dateObj.toISOString().slice(0, 10)}T${availability.end_time}`);
 
     while (start < end) {
       const slotEnd = new Date(start.getTime() + interval * 60000);
       if (slotEnd > end) break;
 
-      // --- NEW LOGIC HERE ---
-      // Determine the patient limit for this slot based on the doctor's config
       const patientLimit = doctor.schedule_type === 'wave' ? doctor.wave_limit : 1;
-      // --- END NEW LOGIC ---
 
       const slot = this.timeSlotRepo.create({
         doctor: { doctor_id: doctor.doctor_id } as Doctor,
         availability: { id: availability.id } as DoctorAvailability,
-        date: dateObj, // Use the Date object directly
+        date: dateObj,
         day_of_week: dateObj.toLocaleDateString('en-US', { weekday: 'long' }),
         start_time: start.toTimeString().slice(0, 5),
         end_time: slotEnd.toTimeString().slice(0, 5),
         is_available: true,
-        patient_limit: patientLimit, // <-- Use the calculated limit
+        patient_limit: patientLimit, // <-- THE FIX IS HERE
         booked_count: 0,
       });
 
