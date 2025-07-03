@@ -1,3 +1,5 @@
+// src/auth/auth.controller.ts
+
 import {
   Controller,
   Post,
@@ -8,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
   UnauthorizedException,
+  HttpStatus // Import HttpStatus for better clarity with HttpCode
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
@@ -20,29 +23,33 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('signup')
+  @HttpCode(HttpStatus.CREATED) // Use HttpStatus enum for clarity
   signup(@Body() dto: SignupDto) {
     return this.authService.signup(dto);
   }
 
   @Post('signin')
-  @HttpCode(200)
+  @HttpCode(HttpStatus.OK)
   signin(@Body() dto: SigninDto) {
     return this.authService.signin(dto);
   }
 
   @UseGuards(JwtGuard)
   @Post('signout')
+  @HttpCode(HttpStatus.OK) // Use HttpStatus enum for clarity
   signout(@Req() req) {
-    return this.authService.signout(req.user.sub);
+    const userId = req.user.id; // <-- CRITICAL FIX: Get user ID from req.user.id
+    return this.authService.signout(userId);
   }
 
   @Post('refresh')
-  @HttpCode(200)
-  refresh(@Req() req) {
-    const refreshToken = req.headers['authorization']?.replace('Bearer ', '');
-    const userId = req.body?.userId;
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtGuard) // JwtGuard will attach req.user, from which we get userId
+  async refresh(@Req() req) {
+    const refreshToken = req.headers['authorization']?.replace('Bearer ', ''); // Still get refresh token from header
+    const userId = req.user.id; // <-- CRITICAL FIX: Get user ID from req.user.id, NOT req.body
 
-    if (!refreshToken || !userId) {
+    if (!refreshToken || !userId) { // userId check is still useful in case req.user.id is somehow not present
       throw new UnauthorizedException('Missing refresh token or userId');
     }
 
@@ -51,7 +58,9 @@ export class AuthController {
 
   @UseGuards(JwtGuard)
   @Get('profile')
+  @HttpCode(HttpStatus.OK) // Use HttpStatus enum for clarity
   getProfile(@Req() req) {
+    // req.user already contains { id, email, role } from JwtStrategy's validate method
     return {
       message: 'Access granted to protected route',
       user: req.user,
@@ -70,7 +79,7 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() req) {
-    // Tokens and user info already handled by GoogleStrategy
+    // req.user from GoogleAuthGuard will contain user data and tokens
     return req.user;
   }
 }

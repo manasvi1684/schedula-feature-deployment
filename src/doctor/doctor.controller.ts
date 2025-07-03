@@ -19,15 +19,12 @@ import { PaginationDto } from 'src/auth/dto/PaginationDto';
 import { JwtGuard } from 'src/common/guards/jwt.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
-// --- NEW ---
-import { UpdateScheduleConfigDto } from './dto/update-schedule-config.dto'; // <-- Import our new DTO
-// --- END NEW ---
+import { UpdateScheduleConfigDto } from './dto/update-schedule-config.dto';
 
 @Controller('api/v1/doctors')
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
 
-  // ... (existing GET findAll and GET findOne endpoints are perfect, no changes needed)
   @Get()
   findAll(
     @Query('name') name?: string,
@@ -43,7 +40,6 @@ export class DoctorController {
     return doctor;
   }
   
-  // --- NEW ENDPOINT ---
   @Patch('schedule-config') // Using a clear, descriptive route
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('doctor')
@@ -51,20 +47,18 @@ export class DoctorController {
     @Req() req: any,
     @Body() updateScheduleConfigDto: UpdateScheduleConfigDto,
   ) {
-    const userUuid = req.user.sub; // Get doctor's user UUID from JWT
+    const userUuid = req.user.id; // <-- CRITICAL FIX: Changed from req.user.sub to req.user.id
     return this.doctorService.updateScheduleConfig(
       userUuid,
       updateScheduleConfigDto,
     );
   }
-  // --- END NEW ENDPOINT ---
 
-  // ... (existing POST setAvailability and GET getAvailability endpoints are perfect, no changes needed)
   @Post('availability')
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('doctor')
   async setAvailability(@Body() dto: SetAvailabilityDto, @Req() req: any) {
-    const userUuid = req.user.sub;
+    const userUuid = req.user.id; // <-- CRITICAL FIX: Changed from req.user.sub to req.user.id
     return this.doctorService.setAvailability(userUuid, dto);
   }
 

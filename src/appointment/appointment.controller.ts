@@ -27,12 +27,13 @@ export class AppointmentController {
     @Body() createAppointmentDto: CreateAppointmentDto,
     @Req() req: any, // We need the request object to get the user
   ) {
-    const userUuid = req.user.sub; // Get the user's UUID from the JWT payload
+    const userUuid = req.user.id; // <-- THIS IS THE CRITICAL FIX: Changed from req.user.sub to req.user.id
     return this.appointmentService.createAppointment(
       userUuid,
       createAppointmentDto,
     );
   }
+
   @Get('me')
   @Roles('patient') // Accessible to patients
   async getPatientAppointments(@Req() req: any) {
@@ -40,9 +41,8 @@ export class AppointmentController {
     try {
       return await this.appointmentService.getPatientAppointments(userUuid);
     } catch (error) {
-      // Improved Error Handling
       if (error instanceof NotFoundException) {
-        throw error; // Re-throw the NotFoundException
+        throw error;
       }
       throw new InternalServerErrorException('Failed to retrieve patient appointments.');
     }
@@ -55,9 +55,8 @@ export class AppointmentController {
      try {
       return await this.appointmentService.getDoctorAppointments(userUuid);
     } catch (error) {
-       // Improved Error Handling
       if (error instanceof NotFoundException) {
-        throw error; // Re-throw the NotFoundException
+        throw error;
       }
       throw new InternalServerErrorException('Failed to retrieve doctor appointments.');
     }
