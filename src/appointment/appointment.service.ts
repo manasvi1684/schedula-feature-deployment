@@ -12,6 +12,7 @@ import { Appointment } from 'src/entities/appointment.entity';
 import { TimeSlot } from 'src/entities/timeslot.entity';
 import { Patient } from 'src/entities/patient.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { formatInTimeZone } from 'date-fns-tz';
 
 import { Doctor } from 'src/entities/doctor.entity'; //to import a doctor
 
@@ -77,44 +78,35 @@ export class AppointmentService {
         // --- 3. Perform validation checks ---
         
         // --- NEW BOOKING WINDOW VALIDATION ---
-// --- FINAL ROBUST BOOKING WINDOW VALIDATION ---
+// --- FINAL, LIBRARY-BASED BOOKING WINDOW VALIDATION ---
 if (doctor.booking_start_time && doctor.booking_end_time) {
-  // Get current time in local timezone
-  const now = new Date();
-  
-  // Convert current time to total minutes from midnight
-  const nowInMinutes = now.getHours() * 60 + now.getMinutes();
-  
-  // Convert booking window times to total minutes from midnight
-  const [startHours, startMinutes] = doctor.booking_start_time.split(':').map(Number);
-  const bookingStartInMinutes = startHours * 60 + startMinutes;
+  // We assume a standard timezone for the clinic, e.g., 'Asia/Kolkata'.
+  // This makes the check consistent regardless of server location.
+  const timeZone = 'Asia/Kolkata'; // Or any other IANA timezone string
 
-  const [endHours, endMinutes] = doctor.booking_end_time.split(':').map(Number);
-  const bookingEndInMinutes = endHours * 60 + endMinutes;
-  
-  // --- ADD THIS DEBUGGING BLOCK ---
-  console.log('--- BOOKING WINDOW DEBUG ---');
+  // Get the current time in the specified timezone, formatted as HH:mm:ss
+  const currentTime = formatInTimeZone(new Date(), timeZone, 'HH:mm:ss');
+
+  // --- DEBUGGING BLOCK ---
+  console.log('--- BOOKING WINDOW DEBUG (date-fns) ---');
   console.log('Doctor ID:', doctor.doctor_id);
-  console.log('Current Time:', now.toTimeString());
+  console.log('Current Time (in ' + timeZone + '):', currentTime);
   console.log('Booking Start Time (from DB):', doctor.booking_start_time);
   console.log('Booking End Time (from DB):', doctor.booking_end_time);
   console.log('---');
-  console.log('Current Time in Minutes:', nowInMinutes);
-  console.log('Booking Start in Minutes:', bookingStartInMinutes);
-  console.log('Booking End in Minutes:', bookingEndInMinutes);
-  console.log('---');
   // --- END OF DEBUGGING BLOCK ---
 
-  // Now compare the numbers
+  // Now we do a simple, reliable string comparison
   if (
-    nowInMinutes < bookingStartInMinutes ||
-    nowInMinutes > bookingEndInMinutes
+    currentTime < doctor.booking_start_time ||
+    currentTime > doctor.booking_end_time
   ) {
-    throw new ForbiddenException(/* ... */);
+    throw new ForbiddenException(
+      `Booking is only allowed between ${doctor.booking_start_time} and ${doctor.booking_end_time}.`,
+    );
   }
 }
-        // --- END OF NEW VALIDATION ---
-
+// --- END OF FINAL VALIDATION ---
         if (!timeSlot.is_available) {
           throw new ConflictException('This time slot is no longer available.');
         }
