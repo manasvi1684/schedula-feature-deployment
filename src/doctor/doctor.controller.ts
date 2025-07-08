@@ -12,16 +12,18 @@ import {
   Req,
   UseGuards,
   ParseIntPipe,
-  Patch, // <-- Import Patch
+  Patch,
 } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
-import { SetAvailabilityDto } from 'src/auth/dto/SetAvailabilityDto';
+import { CreateTimeSlotDto } from './dto/create-timeslot.dto';
+// import { SetAvailabilityDto } from 'src/auth/dto/SetAvailabilityDto'; // <-- No longer needed here
 import { PaginationDto } from 'src/auth/dto/PaginationDto';
 import { JwtGuard } from 'src/common/guards/jwt.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { UpdateScheduleConfigDto } from './dto/update-schedule-config.dto';
 import { UpdateTimeSlotDto } from './dto/update-timeslot.dto';
+import { CreateAvailabilityDto } from './dto/create-availability.dto'; // <-- Import the new DTO
 
 @Controller('api/v1/doctors')
 export class DoctorController {
@@ -42,27 +44,49 @@ export class DoctorController {
     return doctor;
   }
   
-  @Patch('schedule-config') // Using a clear, descriptive route
+  @Patch('schedule-config')
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('doctor')
   async updateScheduleConfig(
     @Req() req: any,
     @Body() updateScheduleConfigDto: UpdateScheduleConfigDto,
   ) {
-    const userUuid = req.user.id; // <-- CRITICAL FIX: Changed from req.user.sub to req.user.id
+    // You have req.user.id here, which is good. We should be consistent.
+    // The JWT strategy assigns the payload to req.user. Let's assume the user ID is in req.user.id
+    const userUuid = req.user.id;
     return this.doctorService.updateScheduleConfig(
       userUuid,
       updateScheduleConfigDto,
     );
   }
 
+  // --- NEW ENDPOINT for creating the availability window ---
+  @Post('availability-window')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('doctor')
+  async createAvailability(
+    @Body() dto: CreateAvailabilityDto,
+    @Req() req: any,
+  ) {
+    // Let's be consistent and use req.user.id
+    const userUuid = req.user.id; 
+    return this.doctorService.createAvailability(userUuid, dto);
+  }
+  // --- END NEW ENDPOINT ---
+
+
+  // --- OLD ENDPOINT REMOVED ---
+  /*
   @Post('availability')
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('doctor')
   async setAvailability(@Body() dto: SetAvailabilityDto, @Req() req: any) {
-    const userUuid = req.user.id; // <-- CRITICAL FIX: Changed from req.user.sub to req.user.id
+    const userUuid = req.user.id;
     return this.doctorService.setAvailability(userUuid, dto);
   }
+  */
+  // --- END OLD ENDPOINT ---
+
 
   @Get(':id/availability')
   @UseGuards(JwtGuard, RolesGuard)
@@ -81,7 +105,8 @@ export class DoctorController {
     @Req() req: any,
     @Param('slotId', ParseIntPipe) slotId: number,
   ) {
-    const userUuid = req.user.sub;
+    // Consistent use of req.user.id
+    const userUuid = req.user.id; 
     return this.doctorService.deleteTimeSlot(userUuid, slotId);
   }
 
@@ -93,8 +118,19 @@ export class DoctorController {
     @Param('slotId', ParseIntPipe) slotId: number,
     @Body() updateTimeSlotDto: UpdateTimeSlotDto,
   ) {
-    const userUuid = req.user.sub;
+    // Consistent use of req.user.id
+    const userUuid = req.user.id; 
     return this.doctorService.updateTimeSlot(userUuid, slotId, updateTimeSlotDto);
+  }
+   @Post('time-slots')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('doctor')
+  async createTimeSlot(
+    @Body() dto: CreateTimeSlotDto,
+    @Req() req: any,
+  ) {
+    const userUuid = req.user.id;
+    return this.doctorService.createTimeSlot(userUuid, dto);
   }
 
 }

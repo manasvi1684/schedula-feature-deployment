@@ -26,7 +26,7 @@ export class TimeSlot {
   @JoinColumn({ name: 'availability_id' })
   availability: DoctorAvailability;
 
-  @Column({ type: 'date' })
+  @Column({ type: 'date',nullable:true })
   date: Date;
 
   @Column()
