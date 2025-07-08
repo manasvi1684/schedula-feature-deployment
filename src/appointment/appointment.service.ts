@@ -77,8 +77,7 @@ export class AppointmentService {
 
         // --- 3. Perform validation checks ---
         
-        // --- NEW BOOKING WINDOW VALIDATION ---
-// --- FINAL, LIBRARY-BASED BOOKING WINDOW VALIDATION ---
+
 if (doctor.booking_start_time && doctor.booking_end_time) {
   // We assume a standard timezone for the clinic, e.g., 'Asia/Kolkata'.
   // This makes the check consistent regardless of server location.
@@ -87,7 +86,6 @@ if (doctor.booking_start_time && doctor.booking_end_time) {
   // Get the current time in the specified timezone, formatted as HH:mm:ss
   const currentTime = formatInTimeZone(new Date(), timeZone, 'HH:mm:ss');
 
-  // --- DEBUGGING BLOCK ---
   console.log('--- BOOKING WINDOW DEBUG (date-fns) ---');
   console.log('Doctor ID:', doctor.doctor_id);
   console.log('Current Time (in ' + timeZone + '):', currentTime);
@@ -106,7 +104,7 @@ if (doctor.booking_start_time && doctor.booking_end_time) {
     );
   }
 }
-// --- END OF FINAL VALIDATION ---
+
         if (!timeSlot.is_available) {
           throw new ConflictException('This time slot is no longer available.');
         }
