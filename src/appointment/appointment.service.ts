@@ -15,6 +15,7 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { formatInTimeZone } from 'date-fns-tz';
 
 import { Doctor } from 'src/entities/doctor.entity'; //to import a doctor
+import { User } from 'src/entities/user.entity';
 
 @Injectable()
 export class AppointmentService {
@@ -220,4 +221,70 @@ if (doctor.booking_start_time && doctor.booking_end_time) {
 
     return appointments;
   }
+
+  async cancelAppointment(appointmentId: number, requestingUser: User) {
+  // Use a transaction to ensure all or no database operations complete
+  return this.dataSource.manager.transaction(async (transactionalEntityManager) => {
+    // 1. Find the appointment with all necessary relations for validation
+    const appointment = await transactionalEntityManager.findOne(Appointment, {
+      where: { appointment_id: appointmentId },
+      relations: [
+        'patient',
+        'patient.user',
+        'doctor',
+        'doctor.user',
+        'time_slot',
+      ],
+    });
+
+    if (!appointment) {
+      throw new NotFoundException(`Appointment with ID ${appointmentId} not found.`);
+    }
+
+    if (appointment.status === 'cancelled') {
+      // This isn't an error, just an informative message.
+      return { message: 'This appointment was already cancelled.' };
+    }
+    if (appointment.status === 'completed') {
+        throw new ForbiddenException('Cannot cancel a completed appointment.');
+    }
+
+    // 2. Authorization: Check if the user is allowed to cancel
+    const isPatientOwner =
+      requestingUser.role === 'patient' &&
+      appointment.patient.user.id === requestingUser.id;
+    
+    const isDoctorOwner =
+      requestingUser.role === 'doctor' &&
+      appointment.doctor.user.id === requestingUser.id;
+
+    if (!isPatientOwner && !isDoctorOwner) {
+      throw new ForbiddenException('You are not authorized to cancel this appointment.');
+    }
+
+    // 3. Update the appointment status
+    appointment.status = 'cancelled';
+
+    // 4. Make the Time Slot available again
+    const timeSlot = appointment.time_slot;
+    if (timeSlot) {
+      // Only make changes if the slot is NOT already available
+      if (!timeSlot.is_available) {
+        timeSlot.is_available = true;
+      }
+      // Decrement the booked count, but don't go below zero
+      if (timeSlot.booked_count > 0) {
+        timeSlot.booked_count -= 1;
+      }
+      await transactionalEntityManager.save(TimeSlot, timeSlot);
+    }
+
+    const updatedAppointment = await transactionalEntityManager.save(Appointment, appointment);
+
+    return {
+      message: 'Appointment successfully cancelled.',
+      appointment: updatedAppointment,
+    };
+  });
+}
 }

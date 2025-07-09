@@ -9,6 +9,9 @@ import {
   InternalServerErrorException,
   NotFoundException,
   Get,
+  Patch,
+  ParseIntPipe,
+  Param,
 } from '@nestjs/common';
 import { AppointmentService } from './appointment.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
@@ -60,5 +63,15 @@ export class AppointmentController {
       }
       throw new InternalServerErrorException('Failed to retrieve doctor appointments.');
     }
+  }
+  @Patch(':id/cancel')
+  @UseGuards(JwtGuard) // Protects the route, allows ANY logged-in user to try
+  async cancelAppointment(
+    @Param('id', ParseIntPipe) appointmentId: number,
+    @Req() req: any,
+  ) {
+    // We pass the entire user object to the service so it can check the role and ID
+    const user = req.user; 
+    return this.appointmentService.cancelAppointment(appointmentId, user);
   }
 }
